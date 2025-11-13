@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Postman Lite — Request Tester</title>
+  <style>
+    :root{ --bg:#0f1724; --card:#0b1220; --muted:#9aa6b2; --accent:#06b6d4; --white:#e6eef6; }
+    *{box-sizing:border-box}
+    body{font-family:Inter,Segoe UI,Roboto,Arial; margin:16px; background:linear-gradient(180deg,#061022 0%, #081427 100%); color:var(--white)}
+    h1{font-size:18px;margin:0 0 12px}
+    .wrap{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;gap:14px}
+    .card{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(3,7,18,0.7)}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input[type=text], select, textarea{width:100%;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--white);outline:none}
+    textarea{min-height:180px;resize:vertical;font-family:monospace}
+    .row{display:flex;gap:8px;align-items:center}
+    .row.split{justify-content:space-between}
+    .btn{background:var(--accent);color:#022;border:none;padding:8px 10px;border-radius:8px;cursor:pointer;font-weight:600}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white)}
+    .headers-list{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+    .hdr{display:flex;gap:6px}
+    .hdr input{flex:1}
+    .small{font-size:12px;color:var(--muted)}
+    .response{white-space:pre-wrap;font-family:monospace;max-height:420px;overflow:auto;padding:10px;border-radius:8px;background:#07101a;border:1px solid rgba(255,255,255,0.03)}
+    .status{font-weight:700}
+    .badge{display:inline-block;padding:6px 8px;border-radius:8px;font-weight:700}
+    .success{background:linear-gradient(90deg,#0ea5a8,#7dd3fc);color:#022}
+    .error{background:linear-gradient(90deg,#fb7185,#ef4444);color:#fff}
+    .controls{display:flex;gap:8px;align-items:center;margin-top:8px}
+    footer{margin-top:12px;color:var(--muted);font-size:12px}
+    .history{display:flex;flex-direction:column;gap:8px}
+    .hist-item{padding:8px;border-radius:6px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));cursor:pointer}
+    .muted{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <h1>Postman Lite — Request tester</h1>
+  <div class="wrap">
+    <!-- Left: Request builder -->
+    <div class="card">
+      <label>Request URL</label>
+      <div class="row">
+        <select id="method" style="width:110px">
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>PATCH</option>
+          <option>DELETE</option>
+        </select>
+        <input id="url" type="text" placeholder="https://api.example.com/endpoint" />
+        <button id="send" class="btn">Send</button>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="row split">
+        <div>
+          <label>Headers</label>
+          <div class="headers-list" id="headersList">
+            <!-- header rows inserted here -->
+          </div>
+          <div class="controls">
+            <button id="addHeader" class="btn ghost">+ Add header</button>
+            <button id="clearHeaders" class="btn ghost">Clear</button>
+          </div>
+        </div>
+        <div style="width:8px"></div>
+        <div style="min-width:220px">
+          <label>Body Type</label>
+          <select id="bodyType">
+            <option value="none">None</option>
+            <option value="raw">Raw (JSON)</option>
+            <option value="form">Form (x-www-form-urlencoded)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <label>Body</label>
+      <textarea id="body" placeholder='{"name":"hamza"}' disabled></textarea>
+
+      <div style="height:12px"></div>
+
+      <div class="row split">
+        <div>
+          <label class="small">Follow redirects</label>
+          <input id="redirects" type="checkbox" checked />
+        </div>
+        <div>
+          <label class="small">Timeout (ms)</label>
+          <input id="timeout" type="text" value="8000" style="width:90px" />
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="row">
+        <button id="saveHistory" class="btn ghost">Save to history</button>
+        <button id="clearAll" class="btn ghost">Reset</button>
+      </div>
+
+      <footer>Tip: For CORS-protected endpoints test from a server or use a CORS proxy. This tool runs in your browser.</footer>
+    </div>
+
+    <!-- Right: Response + history -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card">
+        <div class="row split">
+          <div>
+            <label>Response</label>
+            <div style="margin-top:6px">
+              <span id="statusBadge" class="badge muted">No response</span>
+              <span id="statusText" class="muted" style="margin-left:10px"></span>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <label class="small">Time (ms)</label>
+            <div id="timeTaken" class="muted">—</div>
+          </div>
+        </div>
+
+        <div style="height:8px"></div>
+        <label class="small">Response Headers</label>
+        <div id="respHeaders" class="response" style="min-height:48px"></div>
+
+        <div style="height:8px"></div>
+        <label class="small">Body</label>
+        <div id="respBody" class="response">No response yet</div>
+
+        <div style="height:8px"></div>
+        <div class="row">
+          <button id="copyResponse" class="btn ghost">Copy body</button>
+          <button id="prettyJson" class="btn ghost">Pretty JSON</button>
+          <button id="downloadResp" class="btn ghost">Download</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <label>History (click to load)</label>
+        <div id="history" class="history muted">No saved history</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Utilities
+    const $ = sel => document.querySelector(sel);
+    const createHeaderRow = (key = '', value = '') => {
+      const div = document.createElement('div');
+      div.className = 'hdr';
+      div.innerHTML = `
+        <input class="h-key" placeholder="Header name (e.g. Content-Type)" value="${escapeHtml(key)}">
+        <input class="h-val" placeholder="Header value (e.g. application/json)" value="${escapeHtml(value)}">
+        <button class="btn ghost del">✕</button>
+      `;
+      div.querySelector('.del').addEventListener('click', () => div.remove());
+      return div;
+    };
+    function escapeHtml(s){ return (s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;') }
+
+    // --- DOM refs
+    const headersList = $('#headersList');
+    const bodyEl = $('#body');
+    const bodyType = $('#bodyType');
+    const methodSel = $('#method');
+    const urlEl = $('#url');
+    const sendBtn = $('#send');
+    const statusBadge = $('#statusBadge');
+    const statusText = $('#statusText');
+    const respHeaders = $('#respHeaders');
+    const respBody = $('#respBody');
+    const timeTakenEl = $('#timeTaken');
+    const addHeaderBtn = $('#addHeader');
+    const clearHeadersBtn = $('#clearHeaders');
+    const saveHistoryBtn = $('#saveHistory');
+    const historyEl = $('#history');
+    const clearAllBtn = $('#clearAll');
+    const timeoutEl = $('#timeout');
+
+    // Add initial header rows
+    headersList.appendChild(createHeaderRow('Accept', 'application/json'));
+    headersList.appendChild(createHeaderRow('User-Agent', 'Postman-Lite'));
+
+    // Body type toggle
+    bodyType.addEventListener('change', () => {
+      const t = bodyType.value;
+      bodyEl.disabled = t === 'none';
+      if (t === 'form') {
+        bodyEl.placeholder = 'key1=value1&key2=value2 (x-www-form-urlencoded)';
+      } else if (t === 'raw') {
+        bodyEl.placeholder = '{"foo":"bar"}';
+      } else {
+        bodyEl.placeholder = '';
+      }
+    });
+
+    addHeaderBtn.addEventListener('click', () => headersList.appendChild(createHeaderRow()));
+
+    clearHeadersBtn.addEventListener('click', () => { headersList.innerHTML = ''; });
+
+    clearAllBtn.addEventListener('click', () => {
+      urlEl.value = '';
+      methodSel.value = 'GET';
+      headersList.innerHTML = '';
+      headersList.appendChild(createHeaderRow('Accept','application/json'));
+      bodyType.value = 'none';
+      bodyEl.value = '';
+      bodyEl.disabled = true;
+      respBody.textContent = 'No response yet';
+      respHeaders.textContent = '';
+      statusBadge.textContent = 'No response';
+      statusBadge.className = 'badge muted';
+      timeTakenEl.textContent = '—';
+    });
+
+    // History handling (localStorage)
+    const HISTORY_KEY = 'postman_lite_history_v1';
+    function loadHistory() {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      historyEl.innerHTML = '';
+      if (!arr.length) { historyEl.textContent = 'No saved history'; return; }
+      arr.slice().reverse().forEach((h, idx) => {
+        const d = document.createElement('div');
+        d.className = 'hist-item';
+        d.innerHTML = `<div><strong>${h.method}</strong> ${escapeHtml(h.url)}</div><div class="small muted">${new Date(h.ts).toLocaleString()}</div>`;
+        d.addEventListener('click', () => {
+          methodSel.value = h.method;
+          urlEl.value = h.url;
+          headersList.innerHTML = '';
+          (h.headers || []).forEach(hdr => headersList.appendChild(createHeaderRow(hdr.k, hdr.v)));
+          bodyType.value = h.bodyType || 'none';
+          bodyEl.disabled = bodyType.value === 'none';
+          bodyEl.value = h.body || '';
+        });
+        historyEl.appendChild(d);
+      });
+    }
+    loadHistory();
+
+    saveHistoryBtn.addEventListener('click', () => {
+      const rec = buildRequestSnapshot();
+      const raw = localStorage.getItem(HISTORY_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      arr.push({...rec, ts: Date.now()});
+      // keep last 40
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(arr.slice(-40)));
+      loadHistory();
+      alert('Saved to history');
+    });
+
+    function buildRequestSnapshot(){
+      return {
+        method: methodSel.value,
+        url: urlEl.value,
+        headers: getHeadersArray(),
+        bodyType: bodyType.value,
+        body: bodyEl.value
+      };
+    }
+
+    function getHeadersArray(){
+      return Array.from(headersList.querySelectorAll('.hdr')).map(div => {
+        const k = div.querySelector('.h-key').value.trim();
+        const v = div.querySelector('.h-val').value.trim();
+        return {k,v};
+      }).filter(h => h.k);
+    }
+
+    // Send request
+    sendBtn.addEventListener('click', async () => {
+      const url = urlEl.value.trim();
+      if (!url) { alert('Enter a URL'); return; }
+      const method = methodSel.value;
+      const headers = {};
+      getHeadersArray().forEach(h => headers[h.k] = h.v);
+
+      let body = null;
+      const bt = bodyType.value;
+      if (bt === 'raw') {
+        // try parse JSON to ensure validity (but still send raw)
+        try { if (bodyEl.value.trim()) JSON.parse(bodyEl.value); } catch (e) { if(!confirm('Raw body is not valid JSON. Continue anyway?')) return; }
+        body = bodyEl.value;
+        // ensure content-type header if not set
+        if (!Object.keys(headers).some(k => k.toLowerCase() === 'content-type')) headers['Content-Type'] = 'application/json';
+      } else if (bt === 'form') {
+        // send as x-www-form-urlencoded
+        body = bodyEl.value;
+        if (!Object.keys(headers).some(k => k.toLowerCase() === 'content-type')) headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      }
+
+      // Prepare fetch options
+      const opts = { method, headers };
+      if (method !== 'GET' && method !== 'HEAD' && body !== null) opts.body = body;
+      const timeout = parseInt(timeoutEl.value) || 8000;
+
+      // Update UI
+      statusBadge.textContent = 'Pending...';
+      statusBadge.className = 'badge muted';
+      respBody.textContent = '';
+      respHeaders.textContent = '';
+      timeTakenEl.textContent = '—';
+      statusText.textContent = '';
+
+      const controller = new AbortController();
+      const signal = controller.signal;
+      opts.signal = signal;
+
+      const start = Date.now();
+      const timer = setTimeout(() => controller.abort(), timeout);
+
+      try {
+        const res = await fetch(url, opts);
+        clearTimeout(timer);
+        const took = Date.now() - start;
+        timeTakenEl.textContent = took + ' ms';
+        // status
+        statusBadge.textContent = `${res.status} ${res.statusText}`;
+        statusBadge.className = res.ok ? 'badge success' : 'badge error';
+        statusText.textContent = res.ok ? 'OK' : 'Error';
+
+        // headers
+        const hObj = {};
+        for (const pair of res.headers.entries()) hObj[pair[0]] = pair[1];
+        respHeaders.textContent = JSON.stringify(hObj, null, 2);
+
+        // try parse body as json, otherwise as text
+        const ct = res.headers.get('content-type') || '';
+        let text;
+        if (ct.includes('application/json')) {
+          const json = await res.json();
+          respBody.textContent = JSON.stringify(json, null, 2);
+        } else {
+          text = await res.text();
+          // try to pretty print JSON-like text
+          try {
+            const j = JSON.parse(text);
+            respBody.textContent = JSON.stringify(j, null, 2);
+          } catch (e) {
+            respBody.textContent = text;
+          }
+        }
+      } catch (err) {
+        clearTimeout(timer);
+        const took = Date.now() - start;
+        timeTakenEl.textContent = took + ' ms';
+        if (err.name === 'AbortError') {
+          statusBadge.textContent = 'Timed out / aborted';
+          statusBadge.className = 'badge error';
+          respBody.textContent = 'Request aborted (timeout or user cancellation).';
+        } else {
+          statusBadge.textContent = 'Network/Error';
+          statusBadge.className = 'badge error';
+          respBody.textContent = String(err);
+        }
+      }
+    });
+
+    // helpers for response controls
+    $('#copyResponse').addEventListener('click', () => {
+      navigator.clipboard.writeText(respBody.textContent || '').then(()=>alert('Copied'));
+    });
+
+    $('#prettyJson').addEventListener('click', () => {
+      try {
+        const j = JSON.parse(respBody.textContent);
+        respBody.textContent = JSON.stringify(j, null, 2);
+      } catch(e){ alert('Response is not valid JSON'); }
+    });
+
+    $('#downloadResp').addEventListener('click', () => {
+      const blob = new Blob([respBody.textContent], {type:'text/plain'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'response.txt';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+
+    // load initial example
+    urlEl.value = 'https://jsonplaceholder.typicode.com/posts';
+    methodSel.value = 'GET';
+    bodyType.value = 'none';
+  </script>
+</body>
+</html>
